@@ -64,20 +64,37 @@ export function duplicateMultipleEntities(
     return orderA - orderB;
   });
 
-  // Generate ID mappings for all entities
-  const allIdMappings: IdMapping[] = sortedEntities.map(entity =>
-    generateIdMappings(modifiedConfig, entity, duplicationConfig.numberOfCopies)
-  );
+  // Generate ID mappings for all entities and merge them
+  const mergedIdMapping: IdMapping = {
+    stages: {},
+    tasks: {},
+    parameters: {},
+    automations: {},
+    actions: {},
+    effects: {},
+  };
+
+  sortedEntities.forEach(entity => {
+    const mapping = generateIdMappings(modifiedConfig, entity, duplicationConfig.numberOfCopies);
+
+    // Merge mappings
+    Object.assign(mergedIdMapping.stages, mapping.stages);
+    Object.assign(mergedIdMapping.tasks, mapping.tasks);
+    Object.assign(mergedIdMapping.parameters, mapping.parameters);
+    Object.assign(mergedIdMapping.automations, mapping.automations);
+    Object.assign(mergedIdMapping.actions, mapping.actions);
+    Object.assign(mergedIdMapping.effects, mapping.effects);
+  });
 
   // Apply strategy-specific duplication
   if (duplicationConfig.orderingStrategy === 'interleaved') {
-    applyInterleavedGrouped(modifiedConfig, sortedEntities, duplicationConfig, allIdMappings);
+    applyInterleavedGrouped(modifiedConfig, sortedEntities, duplicationConfig, mergedIdMapping);
   } else {
     // Sequential strategy
     if (duplicationConfig.groupingStrategy === 'relative') {
-      applySequentialRelative(modifiedConfig, sortedEntities, duplicationConfig, allIdMappings);
+      applySequentialRelative(modifiedConfig, sortedEntities, duplicationConfig, mergedIdMapping);
     } else {
-      applySequentialGrouped(modifiedConfig, sortedEntities, duplicationConfig, allIdMappings);
+      applySequentialGrouped(modifiedConfig, sortedEntities, duplicationConfig, mergedIdMapping);
     }
   }
 
@@ -705,7 +722,7 @@ function applyInterleavedGrouped(
   config: ChecklistConfig[],
   sortedEntities: SelectedEntity[],
   duplicationConfig: DuplicationConfig,
-  allIdMappings: IdMapping[]
+  idMapping: IdMapping
 ): void {
   const lastEntity = sortedEntities[sortedEntities.length - 1];
   const entityType = lastEntity.type;
@@ -735,7 +752,6 @@ function applyInterleavedGrouped(
   for (let copyIndex = 0; copyIndex < duplicationConfig.numberOfCopies; copyIndex++) {
     for (let entityIndex = 0; entityIndex < sortedEntities.length; entityIndex++) {
       const entity = sortedEntities[entityIndex];
-      const idMapping = allIdMappings[entityIndex];
 
       const copy = createSingleCopy(entity, duplicationConfig, idMapping, copyIndex);
       allCopies.push(copy);
@@ -762,12 +778,11 @@ function applySequentialRelative(
   config: ChecklistConfig[],
   sortedEntities: SelectedEntity[],
   duplicationConfig: DuplicationConfig,
-  allIdMappings: IdMapping[]
+  idMapping: IdMapping
 ): void {
   // Process entities in reverse order to maintain correct indices
   for (let entityIndex = sortedEntities.length - 1; entityIndex >= 0; entityIndex--) {
     const entity = sortedEntities[entityIndex];
-    const idMapping = allIdMappings[entityIndex];
 
     // Use the existing single-entity duplication logic
     if (entity.type === 'stage') {
@@ -789,7 +804,7 @@ function applySequentialGrouped(
   config: ChecklistConfig[],
   sortedEntities: SelectedEntity[],
   duplicationConfig: DuplicationConfig,
-  allIdMappings: IdMapping[]
+  idMapping: IdMapping
 ): void {
   const lastEntity = sortedEntities[sortedEntities.length - 1];
   const entityType = lastEntity.type;
@@ -818,7 +833,6 @@ function applySequentialGrouped(
 
   for (let entityIndex = 0; entityIndex < sortedEntities.length; entityIndex++) {
     const entity = sortedEntities[entityIndex];
-    const idMapping = allIdMappings[entityIndex];
 
     for (let copyIndex = 0; copyIndex < duplicationConfig.numberOfCopies; copyIndex++) {
       const copy = createSingleCopy(entity, duplicationConfig, idMapping, copyIndex);
