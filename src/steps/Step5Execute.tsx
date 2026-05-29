@@ -47,7 +47,10 @@ export default function Step5Execute({
   }, []);
 
   const handleDownload = () => {
-    const modifiedJson = JSON.stringify(modifiedConfig, null, 2);
+    // IMPORTANT: MES platform import requires MINIFIED JSON (single line, no
+    // indentation). Pretty-printed output (JSON.stringify(x, null, 2)) is
+    // rejected by the importer, so we serialize compactly here.
+    const modifiedJson = JSON.stringify(modifiedConfig);
     const originalFileName = 'configuration';
     const timestamp = Date.now();
     const fileName = `${originalFileName}_MODIFIED_${timestamp}.json`;
